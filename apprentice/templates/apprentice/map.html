@@ -1,0 +1,63 @@
+{% extends "apprentice/base.html" %}
+{% load static %}
+{% block title %}{{ wm.title }} · Work Map{% endblock %}
+{% block content %}
+<main>
+  <section class="map-hero">
+    <div>
+      <span class="label" data-reveal>Module 2 · Work Map</span>
+      <h1 id="mapTitle">{{ data.title|default:wm.title }}</h1>
+      <p data-reveal>{{ data.summary|default:data.goal }}</p>
+    </div>
+    <div class="stats" data-reveal>
+      <div class="stat"><div class="n tnum" data-count="{{ stats.phases }}">{{ stats.phases }}</div><div class="l">Phases</div></div>
+      <div class="stat"><div class="n tnum" data-count="{{ stats.guardrails }}">{{ stats.guardrails }}</div><div class="l">Guardrails</div></div>
+      <div class="stat"><div class="n tnum" data-count="{{ stats.events }}">{{ stats.events }}</div><div class="l">Screen events</div></div>
+    </div>
+  </section>
+
+  <div class="map-actions" data-reveal>
+    <a class="btn btn-primary" href="{% url 'teach' wm.id %}">Teach a new hire <span aria-hidden="true">→</span></a>
+    <a class="btn btn-ghost" href="{% url 'map_agent' wm.id %}" target="_blank" rel="noopener">Export for AI agents</a>
+    <a class="btn btn-ghost" href="{% url 'map_json' wm.id %}">Download JSON</a>
+  </div>
+
+  {% if data.phases %}
+  <section class="map-body">
+    <nav class="card path" id="path" aria-label="Phases">
+      <svg id="pathSvg"><path id="pathLine" fill="none" stroke="#f2a93b" stroke-width="1.5" stroke-linecap="round"/></svg>
+      {% for p in data.phases %}
+      <button class="path-node{% if forloop.first %} active{% endif %}" data-i="{{ forloop.counter0 }}">
+        <span class="bubble">{{ forloop.counter }}</span>
+        <span><span class="t">{{ p.name }}</span><br><span class="s">{{ p.steps|length }} step{{ p.steps|length|pluralize }} · {{ p.guardrails|length }} guardrail{{ p.guardrails|length|pluralize }}</span></span>
+      </button>
+      {% endfor %}
+    </nav>
+    <article class="panel detail" id="detail" aria-live="polite"></article>
+  </section>
+  {% else %}
+  <div class="card" style="padding:40px;margin-bottom:80px"><h2 class="serif" style="margin:0 0 8px">Nothing mapped yet</h2><p class="muted">The session was too short to learn a process. Run a longer capture session.</p></div>
+  {% endif %}
+
+  {% if data.global_guardrails or data.open_questions %}
+  <section class="steps3" style="grid-template-columns:1fr 1fr">
+    {% if data.global_guardrails %}
+    <div class="card step3" data-reveal>
+      <span class="label">Always, in every phase</span>
+      {% for g in data.global_guardrails %}
+      <div class="guard {% if g.severity != 'stop' %}warn{% endif %}"><span class="sev">{% if g.severity == 'stop' %}STOP{% else %}WARN{% endif %}</span><div>{{ g.rule }}<div class="why">{{ g.why }}</div></div></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if data.open_questions %}
+    <div class="card step3" data-reveal>
+      <span class="label">Still unclear (asked next session)</span>
+      <ul class="muted" style="margin:12px 0 0;padding-left:18px">{% for q in data.open_questions %}<li>{{ q }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+</main>
+{{ data|json_script:"mapData" }}
+{% endblock %}
+{% block scripts %}<script type="module" src="{% static 'apprentice/map.js' %}"></script>{% endblock %}

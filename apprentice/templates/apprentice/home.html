@@ -1,0 +1,56 @@
+{% extends "apprentice/base.html" %}
+{% load static %}
+{% block content %}
+<main>
+  <section class="hero">
+    <div>
+      <span class="label" data-reveal>AI Apprentice · ElevenLabs × Hack-Nation</span>
+      <h1 id="heroTitle">Your best engineer won't be here <em>forever</em>.</h1>
+      <p class="lead" data-reveal>An apprentice that watches an expert deploy on Thales Ops, asks why at the right moments, maps the judgment behind every step, and teaches the next engineer by voice.</p>
+      <div class="hero-actions" data-reveal>
+        <form method="post" action="{% url 'capture_new' %}">
+          <button class="btn btn-primary" type="submit">Start a capture session</button>
+        </form>
+        {% if maps %}<a class="arrow-link amber" href="{% url 'map' maps.0.id %}">Open the latest Work Map <span class="line"></span></a>{% endif %}
+      </div>
+    </div>
+    <div class="hero-visual" data-reveal><canvas id="heroOrb"></canvas></div>
+  </section>
+
+  <section class="steps3">
+    <div class="card step3" data-reveal><div class="num">01</div><h3>Capture</h3><p>The expert shares their screen and deploys. The apprentice stays quiet, then asks short why-questions while the build runs.</p></div>
+    <div class="card step3" data-reveal><div class="num">02</div><h3>Map</h3><p>A debrief closes the gaps, the apprentice explains the process back, and it becomes a Work Map of steps, reasons and guardrails.</p></div>
+    <div class="card step3" data-reveal><div class="num">03</div><h3>Teach</h3><p>A voice tutor coaches a new hire on their own screen and stops them before they break one of the expert's rules.</p></div>
+  </section>
+
+  <section>
+    <div class="section-head"><div><span class="label">Library</span><h2>Work Maps</h2></div></div>
+    <div class="maps-list">
+      {% for m in maps %}
+      <a class="card map-row" href="{% url 'map' m.id %}" data-reveal>
+        <div><h4>{{ m.title }}</h4><span class="muted" style="font-size:13px">{{ m.created|date:"M j, H:i" }} · {{ m.data.phases|length }} phases</span></div>
+        <span class="arrow-link">Open <span class="line"></span></span>
+      </a>
+      {% empty %}
+      <div class="card" style="padding:28px" data-reveal><span class="muted">No Work Maps yet. Start a capture session and deploy something.</span></div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}
+<script type="module">
+  import { Orb, revealPage, reduceMotion } from "{% static 'apprentice/core.js' %}";
+  const orb = new Orb(document.getElementById("heroOrb"));
+  // Idle demo: the orb "speaks" in soft bursts on the landing page.
+  let t = 0;
+  setInterval(() => { t += 1; orb.mode = (t % 9) < 4 ? "speaking" : "listening"; orb.level = orb.mode === "speaking" ? 0.25 + Math.random() * 0.35 : 0; }, 220);
+  const gsap = window.gsap;
+  if (!reduceMotion && gsap && window.SplitText) {
+    gsap.registerPlugin(window.SplitText);
+    const s = new window.SplitText("#heroTitle", { type: "lines,words", mask: "lines" });
+    gsap.from(s.words, { yPercent: 110, opacity: 0, duration: 1.1, ease: "expo.out", stagger: 0.045 });
+  }
+  revealPage();
+</script>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "apprentice/base.html" %}
+{% load static %}
+{% block title %}Teach · AI Apprentice{% endblock %}
+{% block nav %}<a href="{% url 'map' wm.id %}">← Work Map</a><span id="status" class="pill">Not started</span>{% endblock %}
+{% block content %}
+<main class="session" id="app">
+  <section class="stage">
+    <div class="panel start-hero" id="startHero" data-reveal>
+      <span class="label">Module 3 · Teach</span>
+      <h1>Your first deploy, <em>coached</em>.</h1>
+      <p>The tutor learned <strong>{{ wm.title }}</strong> from an expert. Share your Thales Ops screen and deploy. It explains each step, shows what Thales Ops does for you, and stops you before you break one of the expert's rules.</p>
+      <button class="btn btn-primary" id="startBtn">Start coaching<span class="spin" hidden></span></button>
+      <div class="perm-list"><span>● Microphone</span><span>● Screen share</span></div>
+    </div>
+
+    <div class="card screen-card" id="screenCard" hidden>
+      <div class="screen-thumb"><video id="video" muted playsinline></video><div class="scan" id="scan"></div></div>
+      <div class="screen-meta">
+        <span class="label">What I see</span>
+        <div class="now" id="screenNow">Waiting for the first frame…</div>
+        <div class="sub"><span id="phaseName">—</span></div>
+      </div>
+    </div>
+
+    <div class="panel voice-stage" id="voiceStage" hidden>
+      <div class="ask-flash" id="askFlash"></div>
+      <div class="who"><span class="label" id="whoLabel">Tutor</span></div>
+      <p class="utter" id="utter">Connecting…</p>
+      <div class="hint">Ask it anything while you work.</div>
+    </div>
+
+    <div class="card result" id="result" hidden>
+      <svg class="score-ring" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#25211c" stroke-width="8"/>
+        <circle id="ringArc" cx="60" cy="60" r="52" fill="none" stroke="#4fd6a7" stroke-width="8" stroke-linecap="round"
+          stroke-dasharray="326.7" stroke-dashoffset="326.7" transform="rotate(-90 60 60)"/>
+        <text x="60" y="68" text-anchor="middle" fill="#f2ede4" font-family="Instrument Serif" font-size="36" id="ringNum">0</text>
+      </svg>
+      <div>
+        <span class="label">Did they learn it?</span>
+        <h3 id="verdict"></h3>
+        <ul id="resultList"></ul>
+      </div>
+    </div>
+
+    <div class="card transcript" id="transcript" hidden><div class="empty">The conversation will appear here.</div></div>
+  </section>
+
+  <aside class="side">
+    <div class="panel orb-card" data-reveal>
+      <div class="orb-wrap"><canvas id="orb"></canvas></div>
+      <div class="orb-name">Alice, your tutor</div>
+      <div class="controls">
+        <button class="btn btn-ghost" id="checkBtn" disabled>I'm deployed: test me</button>
+        <button class="btn btn-learn" id="gradeBtn" hidden>See how I did<span class="spin" hidden></span></button>
+      </div>
+    </div>
+
+    <div class="card coach-card" id="coach" data-reveal>
+      <span class="label">Now</span>
+      <h3 id="coachTitle">Waiting to start</h3>
+      <p id="coachText">Each step will appear here with the idea behind it.</p>
+    </div>
+
+    <div class="card rail" data-reveal>
+      <div class="rail-head"><span class="label">The expert's path</span></div>
+      <div id="rail">
+        {% for p in wm.data.phases %}
+        <div class="phase" data-phase="{{ p.id }}"><span class="node"></span><span class="pname">{{ p.name }}</span><span></span></div>
+        {% endfor %}
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div class="alert" id="alert" role="alert">
+  <span class="label">Stop · expert guardrail</span>
+  <p id="alertText"></p>
+</div>
+{{ boot|json_script:"boot" }}
+{{ wm.data.phases|json_script:"mapPhases" }}
+{% endblock %}
+{% block scripts %}<script type="module" src="{% static 'apprentice/teach.js' %}"></script>{% endblock %}
