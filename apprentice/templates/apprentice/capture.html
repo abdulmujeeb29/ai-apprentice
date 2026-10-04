@@ -1,6 +1,6 @@
 {% extends "apprentice/base.html" %}
 {% load static %}
-{% block title %}Capture · AI Apprentice{% endblock %}
+{% block title %}Capture · Sidecar{% endblock %}
 {% block nav %}<span id="status" class="pill">Not started</span><span class="label tnum" id="clock">00:00</span>{% endblock %}
 {% block content %}
 <main class="session" id="app">
@@ -9,7 +9,7 @@
     <div class="panel start-hero" id="startHero" data-reveal>
       <span class="label">Module 1 · Capture</span>
       <h1>Show me how you <em>deploy</em>.</h1>
-      <p>Share the tab or window where you use Thales Ops, then deploy as you normally would. The apprentice stays quiet while you work and asks a few short questions at natural moments, like while a build is running.</p>
+      <p>Share the tab or window where you use Thales Ops, then deploy as you normally would. Sidecar stays quiet while you work and asks a few short questions at natural moments, like while a build is running.</p>
       <button class="btn btn-primary" id="startBtn">Start session<span class="spin" hidden></span></button>
       <div class="perm-list"><span>● Microphone</span><span>● Screen share</span><span>● Secrets on screen are never stored</span></div>
     </div>
@@ -29,7 +29,7 @@
 
     <div class="panel voice-stage" id="voiceStage" hidden>
       <div class="ask-flash" id="askFlash"></div>
-      <div class="who"><span class="label" id="whoLabel">Apprentice</span></div>
+      <div class="who"><span class="label" id="whoLabel">Sidecar</span></div>
       <p class="utter" id="utter">Connecting…</p>
       <div class="hint" id="hint">Work normally. Talk to it any time.</div>
     </div>
@@ -45,7 +45,7 @@
   <aside class="side">
     <div class="panel orb-card" data-reveal>
       <div class="orb-wrap"><canvas id="orb"></canvas></div>
-      <div class="orb-name">Will, your apprentice</div>
+      <div class="orb-name">Will, your Sidecar</div>
       <div class="controls">
         <div class="row">
           <button class="btn btn-ghost btn-sm" id="offBtn" disabled>Off the record</button>

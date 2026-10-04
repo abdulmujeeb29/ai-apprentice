@@ -34,10 +34,10 @@ def _headers():
 def agent_config(role: str, llm: str, tts_model: str | None = None) -> dict:
     if role == "interviewer":
         name, prompt, first, placeholders = (
-            "AI Apprentice - Interviewer", prompts.INTERVIEWER_PROMPT, prompts.INTERVIEWER_FIRST_MESSAGE, {})
+            "Sidecar - Interviewer", prompts.INTERVIEWER_PROMPT, prompts.INTERVIEWER_FIRST_MESSAGE, {})
         eagerness, temperature = "patient", 0.5
     else:
-        name, prompt, first = "AI Apprentice - Tutor", prompts.TUTOR_PROMPT, prompts.TUTOR_FIRST_MESSAGE
+        name, prompt, first = "Sidecar - Tutor", prompts.TUTOR_PROMPT, prompts.TUTOR_FIRST_MESSAGE
         placeholders = {"work_map": "(no work map loaded)", "check_scenario": "(none)"}
         eagerness, temperature = "normal", 0.4
     tts = {"voice_id": VOICES[role], "stability": 0.5, "similarity_boost": 0.8, "speed": 1.0}
@@ -45,7 +45,7 @@ def agent_config(role: str, llm: str, tts_model: str | None = None) -> dict:
         tts["model_id"] = tts_model
     return {
         "name": name,
-        "tags": ["hack-nation", "ai-apprentice"],
+        "tags": ["hack-nation", "sidecar"],
         "conversation_config": {
             "agent": {
                 "first_message": first,

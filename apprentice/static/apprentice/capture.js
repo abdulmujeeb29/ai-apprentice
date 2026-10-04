@@ -63,10 +63,10 @@ function renderRail(phases, current) {
 // ------------------------------------------------------------ voice events
 
 function onMessage(role, text) {
-  addTranscript($("transcript"), role, text, { user: "You", agent: "Apprentice" });
+  addTranscript($("transcript"), role, text, { user: "You", agent: "Sidecar" });
   if (!off) api(`/api/s/${SID}/utterance`, { role, text }).catch(() => {});
   if (role === "agent") {
-    $("whoLabel").textContent = "Apprentice";
+    $("whoLabel").textContent = "Sidecar";
     speakText($("utter"), text);
   } else if (text.split(" ").length > 3) {
     $("whoLabel").textContent = "You";

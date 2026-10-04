@@ -1,6 +1,6 @@
 {% extends "apprentice/base.html" %}
 {% load static %}
-{% block title %}Teach · AI Apprentice{% endblock %}
+{% block title %}Teach · Sidecar{% endblock %}
 {% block nav %}<a href="{% url 'map' wm.id %}">← Work Map</a><span id="status" class="pill">Not started</span>{% endblock %}
 {% block content %}
 <main class="session" id="app">
@@ -49,7 +49,7 @@
   <aside class="side">
     <div class="panel orb-card" data-reveal>
       <div class="orb-wrap"><canvas id="orb"></canvas></div>
-      <div class="orb-name">Alice, your tutor</div>
+      <div class="orb-name">Alice, Sidecar tutor</div>
       <div class="controls">
         <button class="btn btn-ghost" id="checkBtn" disabled>I'm deployed: test me</button>
         <button class="btn btn-learn" id="gradeBtn" hidden>See how I did<span class="spin" hidden></span></button>

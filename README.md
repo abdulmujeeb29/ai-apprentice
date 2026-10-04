@@ -1,6 +1,8 @@
-# AI Apprentice
+# Sidecar
 
-**A voice apprentice that learns how a senior engineer deploys software, asks *why* at the right moments, and teaches the next engineer by voice.**
+**Runs alongside your best engineer.**
+
+Sidecar is a voice AI apprentice that learns how a senior engineer deploys software, asks *why* at the right moments, and teaches the next engineer by voice. In DevOps, a sidecar is a helper container that runs next to your app, watches everything it does and adds abilities without getting in the way. Sidecar does the same for people.
 
 Built for the **ElevenLabs × Hack-Nation 7th Global AI Hackathon**, challenge 01: *The AI Apprentice*.
 
@@ -14,7 +16,7 @@ We picked one of the most judgment-heavy desk jobs there is: **putting an app in
 
 ## How it works
 
-### 1. Capture: the apprentice watches and asks
+### 1. Capture: Sidecar watches and asks
 The expert shares their screen and deploys as usual while **Will**, the Interviewer agent, listens in a side panel.
 
 - Every changed frame goes to a vision model and becomes a short event tagged with the deploy phase: *"Detected Django, Postgres and six required env vars"*, *"Set DEBUG to 0"*.
@@ -24,7 +26,7 @@ The expert shares their screen and deploys as usual while **Will**, the Intervie
 - **Off the record** pauses everything. Secrets, emails, keys and IPs are redacted before anything is stored.
 
 ### 2. Map: debrief, teach-back, Work Map
-When the expert clicks **I'm done**, the apprentice lists what it still doesn't understand: exceptions it noticed, rules it is unsure about, cases it hasn't seen. It asks those one at a time, then explains the whole process back until the expert says *"yes, that's how it works."*
+When the expert clicks **I'm done**, Sidecar lists what it still doesn't understand: exceptions it noticed, rules it is unsure about, cases it hasn't seen. It asks those one at a time, then explains the whole process back until the expert says *"yes, that's how it works."*
 
 The session becomes a **Work Map**, a clickable page with one card per phase:
 - steps, each with the expert's reason and their own words as evidence
@@ -45,7 +47,7 @@ The Work Map also exports as **agent-ready instructions** (`agent.md`): the same
 
 ## Deciding when to speak
 
-The hardest part of an apprentice is timing. `apprentice/policy.py` is a pure, tested utility function, adapted from a stage controller we built for a voice interview product:
+The hardest part of being an apprentice is timing. `apprentice/policy.py` is a pure, tested utility function, adapted from a stage controller we built for a voice interview product:
 
 ```
 value  = coverage gap of the phase (what / why / vs manual / risk) × judgment the action revealed
@@ -129,4 +131,4 @@ docs/deploy_phases.md   deploy phases, coverage checklist, the DevOps primer the
 
 ## What's next
 
-Today the apprentice learns one expert, one task and one new hire. The next step is a **living deployment memory**: every engineer's Work Maps in one place, kept current by an apprentice that only asks about what changed. The same guardrails that teach a new hire can then let Thales Ops agents run routine deploys on their own and stop exactly where a senior engineer would.
+Today Sidecar learns one expert, one task and one new hire. The next step is a **living deployment memory**: every engineer's Work Maps in one place, kept current by a Sidecar that only asks about what changed. The same guardrails that teach a new hire can then let Thales Ops agents run routine deploys on their own and stop exactly where a senior engineer would.
