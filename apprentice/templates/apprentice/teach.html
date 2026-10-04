@@ -74,8 +74,14 @@
 </main>
 
 <div class="alert" id="alert" role="alert">
-  <span class="label">Stop · expert guardrail</span>
-  <p id="alertText"></p>
+  <div class="alert-row">
+    <div>
+      <span class="label">Stop · expert guardrail</span>
+      <p id="alertText"></p>
+      <div class="expert" id="alertQuote"></div>
+    </div>
+    <div id="alertMoment"></div>
+  </div>
 </div>
 {{ boot|json_script:"boot" }}
 {{ wm.data.phases|json_script:"mapPhases" }}

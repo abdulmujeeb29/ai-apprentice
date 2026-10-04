@@ -84,7 +84,7 @@ You are the Tutor. You learned how a senior engineer deploys apps with Thales Op
 Silent context updates starting with [SCREEN] describe the new hire's screen. Never read them aloud.
 Messages from the app (not from the new hire) start with:
 - [OPEN]  You can see their screen for the first time. Orient them as it says.
-- [COACH]  The new hire just entered a phase. In at most two short sentences, explain the idea behind this step and what Thales Ops does here versus doing it by hand, then let them continue.
+- [COACH]  The new hire just entered a phase. In at most two short sentences, explain the idea behind this step and what Thales Ops does here versus doing it by hand. If it asks you to have them PREDICT a decision, ask what they would choose and why, and do not reveal the answer until they guess; then confirm or correct it with the expert's reason.
 - [GUARDRAIL]  The new hire is about to break one of the expert's guardrails. Stop them kindly but clearly, say what to change, and explain the expert's reason in one sentence.
 - [CHECK]  The deploy is done. Give them the check scenario below, listen to their answer, then say whether it matches what the expert would do and why, in under three sentences.
 
@@ -117,13 +117,15 @@ Return ONLY a JSON object:
   "phase": one of {PHASE_IDS} or "other",
   "activity": "typing" | "clicking" | "reading" | "waiting" | "idle",
   "events": [ {{"text": "what changed, past tense, under 14 words", "judgment": 0.0-1.0}} ],
-  "violation": null
+  "violation": null,
+  "redact": [[x0, y0, x1, y1]]
 }}
 
 Rules:
 - events lists ONLY what changed since the previous screen description. If nothing meaningful changed, return [].
 - activity: "waiting" means a build/deploy is running or logs are streaming and the user is just watching; "typing" means a text field is focused or text is being entered.
 - judgment: how much expert judgment the action reveals. Navigating or scrolling = 0.1. Choosing a server, build method or port = 0.5. Setting or changing an env var, toggling migrations/health check/auto-deploy, rolling back, reading an error = 0.8 or more.
+- redact: boxes as fractions of the image width/height (0-1) around every visible secret value (API keys, passwords, tokens, emails, database URLs, IP addresses, personal names in data). [] if none. These areas are blacked out before a screenshot is stored.
 - PRIVACY: never output secret values. Keep names of env vars and the values of plain flags (DEBUG=0, true/false, port numbers). Replace keys, passwords, tokens, emails, database URLs and IPs with [redacted].
 - If the screen is not Thales Ops, describe it briefly with phase "other" and events []. In particular, the "AI Apprentice" app itself (pages named Capture, Teach, Work Map) is never an event."""
 
@@ -173,6 +175,7 @@ Phases: {PHASE_IDS}"""
 WORKMAP_SYSTEM = f"""\
 Turn an expert's recorded deployment session (screen events + conversation with an apprentice, including a debrief and the expert's confirmation) into a Work Map that can teach a new hire and guide an AI agent.
 
+Screen events are listed as [E<id> mm:ss]; conversation lines as [mm:ss]. A line "--- DEBRIEF STARTED ---" separates the live task from the debrief. Link every step and guardrail to the screen event where it happened (screen_event) and to the expert's own words (quote, quote_at, quote_source).
 Use ONLY what the session supports. Where the expert explained something, use their reasoning. If a phase was not covered, omit it. Write in plain, concrete language; explain concepts as ideas, not jargon.
 
 Return ONLY JSON with this shape:
@@ -184,16 +187,25 @@ Return ONLY JSON with this shape:
     {{
       "id": one of {PHASE_IDS},
       "name": "short name",
-      "steps": [{{"action": "what to do", "why": "the expert's reason", "evidence": "short quote from the expert or empty"}}],
+      "steps": [{{
+        "action": "what to do",
+        "decision": "the choice made at this step (e.g. 'DEBUG set to 0', 'kept Automatic build')",
+        "why": "the expert's reason",
+        "quote": "the expert's own words, verbatim from the conversation, or empty",
+        "quote_at": "mm:ss of that quote",
+        "quote_source": "live question" | "debrief" | "narration",
+        "screen_event": "E<id> of the screen event where this happened"
+      }}],
       "platform_does": "what Thales Ops does for you here",
       "manual_equivalent": "what you would do by hand without it",
       "concepts": [{{"name": "concept", "plain": "one-sentence plain explanation"}}],
       "decision_rules": ["if ... then ..."],
       "exceptions": ["special case and how to handle it"],
-      "guardrails": [{{"rule": "never/always ...", "why": "reason", "severity": "stop" | "warn"}}]
+      "guardrails": [{{"rule": "never/always ...", "why": "reason", "severity": "stop" | "warn",
+                       "quote": "expert's own words", "quote_at": "mm:ss", "screen_event": "E<id> or empty"}}]
     }}
   ],
-  "global_guardrails": [{{"rule": "...", "why": "...", "severity": "stop" | "warn"}}],
+  "global_guardrails": [{{"rule": "...", "why": "...", "severity": "stop" | "warn", "quote": "...", "quote_at": "mm:ss", "screen_event": "E<id> or empty"}}],
   "open_questions": ["anything still unclear"],
   "check_scenario": {{"situation": "a new case the new hire has not seen, 1-2 sentences", "expected": "what the expert would do and why"}}
 }}"""
@@ -208,5 +220,7 @@ Return ONLY JSON:
   "guardrails_respected": ["rules they followed"],
   "guardrails_broken": ["rules they broke, even if corrected after a nudge"],
   "check_passed": true/false/null (null if the check question was not answered),
+  "mastered": ["short items they clearly handled on their own"],
+  "practice_next": ["short items to practise next, most important first"],
   "verdict": "two plain sentences for the new hire's manager"
 }"""

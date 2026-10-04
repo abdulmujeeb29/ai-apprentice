@@ -32,16 +32,21 @@ function setPhase(pid) {
   }
 }
 
-function guardrailAlert(text) {
+function guardrailAlert(alert) {
   const el = $("alert");
-  $("alertText").textContent = text;
+  const a = typeof alert === "string" ? { rule: alert } : (alert || {});
+  $("alertText").textContent = a.rule || "This breaks one of the expert's rules.";
+  $("alertQuote").textContent = a.quote ? `“${a.quote}” the expert` : "";
+  const m = a.moment;
+  $("alertMoment").innerHTML = m && m.keyframe
+    ? `<img src="${m.keyframe}" alt="The expert's screen at ${m.time}"><div class="label" style="margin-top:6px">Expert at ${m.time}</div>` : "";
   el.style.display = "block";
-  if (reduceMotion || !gsap) { setTimeout(() => (el.style.display = "none"), 7000); return; }
+  if (reduceMotion || !gsap) { setTimeout(() => (el.style.display = "none"), 9000); return; }
   gsap.timeline()
     .fromTo(el, { opacity: 0, y: -20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "back.out(1.6)" })
     .to(el, { x: -8, duration: 0.06, repeat: 5, yoyo: true, ease: "none" })
     .to(el, { x: 0, duration: 0.06 })
-    .to(el, { opacity: 0, y: -12, duration: 0.5, delay: 6.5, onComplete: () => (el.style.display = "none") });
+    .to(el, { opacity: 0, y: -12, duration: 0.5, delay: 8.5, onComplete: () => (el.style.display = "none") });
 }
 
 function onMessage(role, text) {
@@ -55,7 +60,7 @@ function handle(res) {
   if (!res?.nudge || stage !== "live") return;
   voice.say(res.nudge);
   if (res.nudge_kind === "guardrail") {
-    guardrailAlert(res.alert || "This breaks one of the expert's rules.");
+    guardrailAlert(res.alert);
   } else if (!reduceMotion && gsap) {
     gsap.fromTo($("askFlash"), { opacity: 0 }, { opacity: 1, duration: 0.35, yoyo: true, repeat: 1 });
   }
@@ -133,6 +138,12 @@ async function grade() {
     for (const r of res.guardrails_broken || []) ul.insertAdjacentHTML("beforeend", `<li style="color:var(--danger)">✗ ${escapeHtml(r)}</li>`);
     if (res.check_passed !== null && res.check_passed !== undefined) {
       ul.insertAdjacentHTML("beforeend", `<li>${res.check_passed ? "✓ Handled a new case on their own" : "✗ New case not handled yet"}</li>`);
+    }
+    const lists = [["Mastered", res.mastered], ["Practice next", res.practice_next]];
+    for (const [title, items] of lists) {
+      if (!items || !items.length) continue;
+      ul.insertAdjacentHTML("beforeend", `<h4>${title}</h4>`);
+      for (const it of items) ul.insertAdjacentHTML("beforeend", `<li>${escapeHtml(it)}</li>`);
     }
     $("result").hidden = false;
     const score = res.score || 0;

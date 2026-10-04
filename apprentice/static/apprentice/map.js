@@ -15,12 +15,43 @@ if (!reduceMotion && gsap && window.SplitText) {
 revealPage();
 document.querySelectorAll("[data-count]").forEach((el) => countUp(el, Number(el.dataset.count), 1.6));
 
+function momentHtml(m) {
+  if (!m) return "";
+  return `<button class="moment" data-img="${esc(m.keyframe || "")}" title="${esc(m.screen)}">
+    ${m.keyframe ? `<img src="${esc(m.keyframe)}" alt="Screen at ${esc(m.time)}" loading="lazy">` : ""}
+    <span class="t">${esc(m.time)}</span></button>`;
+}
+
+function lightbox(src) {
+  if (!src) return;
+  const el = document.createElement("div");
+  el.className = "lightbox";
+  el.innerHTML = `<img src="${esc(src)}" alt="Expert's screen moment">`;
+  el.addEventListener("click", () => el.remove());
+  document.body.appendChild(el);
+  if (!reduceMotion && gsap) gsap.fromTo(el.querySelector("img"), { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "expo.out" });
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-img]");
+  if (b && b.dataset.img) lightbox(b.dataset.img);
+});
+
 function render(i) {
   const p = phases[i];
   if (!p) return;
-  const steps = (p.steps || []).map((s) => `
-    <li><div><strong>${esc(s.action)}</strong><div class="why">${esc(s.why)}</div>
-    ${s.evidence ? `<div class="quote">“${esc(s.evidence)}”</div>` : ""}</div></li>`).join("");
+  const steps = (p.steps || []).map((s) => {
+    const q = s.quote || s.evidence;
+    const src = [s.quote_source, s.quote_at ? `at ${s.quote_at}` : ""].filter(Boolean).join(" ");
+    return `
+    <li><div class="step-main">
+      ${momentHtml(s.moment)}
+      <div class="step-body">
+        <strong>${esc(s.action)}</strong>
+        ${s.decision ? `<div class="decision"><span class="label">Decision</span>${esc(s.decision)}</div>` : ""}
+        <div class="why">${esc(s.why)}</div>
+        ${q ? `<div class="quote">“${esc(q)}”${src ? `<span class="src">Expert, ${esc(src)}</span>` : ""}</div>` : ""}
+      </div></div></li>`;
+  }).join("");
   const concepts = (p.concepts || []).map((c) => `<span class="chip"><b>${esc(c.name)}</b> · ${esc(c.plain)}</span>`).join("");
   const rules = (p.decision_rules || []).map((r) => `<span class="chip">${esc(r)}</span>`).join("");
   const exc = (p.exceptions || []).map((r) => `<span class="chip">${esc(r)}</span>`).join("");
@@ -28,7 +59,9 @@ function render(i) {
   const platform = covered(p.platform_does), manual = covered(p.manual_equivalent);
   const guards = (p.guardrails || []).map((g) => `
     <div class="guard ${g.severity === "stop" ? "" : "warn"}"><span class="sev">${g.severity === "stop" ? "STOP" : "WARN"}</span>
-    <div>${esc(g.rule)}<div class="why">${esc(g.why)}</div></div></div>`).join("");
+    <div>${esc(g.rule)}<div class="why">${esc(g.why)}</div>
+    ${g.quote ? `<div class="quote small">“${esc(g.quote)}”${g.quote_at ? `<span class="src">at ${esc(g.quote_at)}</span>` : ""}</div>` : ""}
+    ${g.moment ? `<button class="moment-link" data-img="${esc(g.moment.keyframe || "")}">Screen moment ${esc(g.moment.time)}</button>` : ""}</div></div>`).join("");
   $("#detail").innerHTML = `
     <span class="label">Phase ${i + 1} of ${phases.length}</span>
     <h2>${esc(p.name)}</h2>

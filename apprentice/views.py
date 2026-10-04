@@ -1,8 +1,12 @@
+import base64
+import io
 import json
 import logging
 import re
 import threading
 import time
+
+from PIL import Image, ImageDraw
 
 from django.conf import settings
 from django.http import Http404, HttpResponse, JsonResponse
@@ -13,7 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 from . import elevenlabs as el
 from . import prompts
 from .llm import LLMError, call_json
-from .models import Decision, Event, Session, Utterance, WorkMap
+from .models import Decision, Event, Keyframe, Session, Utterance, WorkMap
 from .policy import Candidate, Moment, decide, phase_gap
 
 logger = logging.getLogger("apprentice")
@@ -55,16 +59,74 @@ def _body(request) -> dict:
         return {}
 
 
+def _mmss(session: Session, at: float) -> str:
+    s = max(0, int(at - session.created.timestamp()))
+    return f"{s // 60:02d}:{s % 60:02d}"
+
+
 def _transcript(session: Session, limit: int = 200) -> str:
     rows = list(session.utterances.all())[-limit:]
     who = {"user": "Expert" if session.kind == Session.CAPTURE else "New hire", "agent": "Agent"}
-    return "\n".join(f"{who.get(u.role, u.role)}: {u.text}" for u in rows) or "(no conversation)"
+    started = float(session.debrief.get("started_at", 0) or 0)
+    lines, marked = [], False
+    for u in rows:
+        if started and not marked and u.at >= started:
+            lines.append(f"--- DEBRIEF STARTED at {_mmss(session, started)} ---")
+            marked = True
+        lines.append(f"[{_mmss(session, u.at)}] {who.get(u.role, u.role)}: {u.text}")
+    return "\n".join(lines) or "(no conversation)"
 
 
 def _events(session: Session, limit: int = 120) -> str:
     rows = list(session.events.all())[-limit:]
-    t0 = rows[0].at if rows else 0
-    return "\n".join(f"[{int(e.at - t0):>4}s] ({e.phase}) {e.text}" for e in rows) or "(no screen events)"
+    return "\n".join(f"[E{e.id} {_mmss(session, e.at)}] ({e.phase}) {e.text}" for e in rows) or "(no screen events)"
+
+
+MAX_KEYFRAMES = 80
+
+
+def save_keyframe(session: Session, data_url: str, boxes, at: float):
+    """Store a small JPEG of this screen moment with secret values blacked out."""
+    if session.keyframes.count() >= MAX_KEYFRAMES:
+        return None
+    try:
+        raw = base64.b64decode(data_url.split(",", 1)[1])
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        w, h = img.size
+        draw = ImageDraw.Draw(img)
+        for b in (boxes or [])[:20]:
+            try:
+                x0, y0, x1, y1 = (float(v) for v in b)
+            except (TypeError, ValueError):
+                continue
+            pad = 0.01
+            draw.rectangle([max(0, x0 - pad) * w, max(0, y0 - pad) * h, min(1, x1 + pad) * w, min(1, y1 + pad) * h], fill=(18, 16, 14))
+        img.thumbnail((720, 720))
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=68, optimize=True)
+        return Keyframe.objects.create(session=session, at=at, image=buf.getvalue())
+    except Exception as e:  # noqa: BLE001 - a missing screenshot must never break the session
+        logger.warning("keyframe failed: %s", e)
+        return None
+
+
+def keyframe_image(request, keyframe_id):
+    k = get_object_or_404(Keyframe, pk=keyframe_id)
+    resp = HttpResponse(bytes(k.image), content_type="image/jpeg")
+    resp["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+def _screen_moment(session: Session, event_ref) -> dict | None:
+    """Resolve "E12" from the model to the screen moment it points at."""
+    m = re.match(r"E?(\d+)$", str(event_ref or "").strip())
+    if not m:
+        return None
+    e = session.events.filter(pk=int(m.group(1))).first()
+    if not e:
+        return None
+    return {"time": _mmss(session, e.at), "screen": e.text,
+            "keyframe": f"/k/{e.keyframe_id}.jpg" if e.keyframe_id else None}
 
 
 def _phase_view(session: Session) -> list[dict]:
@@ -323,6 +385,10 @@ def _capture_decision(session: Session, state: dict, activity: str, phase_change
             _, missing = phase_gap(session.coverage, ev.phase)
             # Focus on the single most valuable gap; "what" is usually visible on screen already.
             focus = next((k for k in ("why", "vs_manual", "risk", "what") if k in missing), "why")
+            # The brief requires at least one guardrail question: make the second live question one.
+            if session.questions_asked >= 1 and not session.debrief.get("risk_asked"):
+                focus = "risk"
+                Session.objects.filter(pk=session.pk).update(debrief={**session.debrief, "risk_asked": True})
             missing_txt = {"what": "what they did here", "why": "why they did it this way",
                            "vs_manual": "what Thales Ops did here that would be manual work without it",
                            "risk": "what can go wrong here, or what they would never do"}[focus]
@@ -335,6 +401,16 @@ def _capture_decision(session: Session, state: dict, activity: str, phase_change
                 questions_asked=session.questions_asked + 1, last_question_at=time.time())
     return {"decision": {"action": d.action, "reason": d.reason, "utility": round(d.utility, 2), "terms": d.terms},
             "nudge": nudge}
+
+
+def _match_guardrail(data: dict, rule: str) -> dict | None:
+    words = set(re.findall(r"[a-z_]{3,}", rule.lower()))
+    best, score = None, 0
+    for g in all_guardrails(data):
+        overlap = len(words & set(re.findall(r"[a-z_]{3,}", str(g.get("rule", "")).lower())))
+        if overlap > score:
+            best, score = g, overlap
+    return best if score >= 2 else None
 
 
 def _covered(text) -> str:
@@ -360,8 +436,13 @@ def _teach_decision(session: Session, state: dict, violation: dict | None) -> di
             session.save(update_fields=["result"])
             what = str(violation.get("what_happened", "")).rstrip(". ")
             rule = str(violation["guardrail"]).rstrip(". ")
-            nudge, kind = (f"[GUARDRAIL] On screen: {what}. Expert's rule: {rule}. Stop them now, kindly."), "guardrail"
-            alert = rule
+            g = _match_guardrail(session.work_map.data if session.work_map else {}, rule)
+            quote = (g or {}).get("quote") or (g or {}).get("why") or ""
+            nudge = (f"[GUARDRAIL] On screen: {what}. Expert's rule: {rule}. "
+                     + (f"In the expert's words: \"{quote}\". " if quote else "")
+                     + "Stop them now, kindly, and explain it using the expert's reasoning.")
+            kind = "guardrail"
+            alert = {"rule": rule, "quote": quote, "moment": (g or {}).get("moment")}
     if not nudge and not state.get("agent_speaking") and float(state.get("silence_s", 0) or 0) > 2.5:
         phase = session.phase
         mp = {p.get("id"): p for p in (session.work_map.data.get("phases", []) if session.work_map else [])}
@@ -377,6 +458,10 @@ def _teach_decision(session: Session, state: dict, violation: dict | None) -> di
                 parts.append(f"Thales Ops does: {p['platform_does']}")
             if _covered(p.get("manual_equivalent")):
                 parts.append(f"By hand: {p['manual_equivalent']}")
+            decision = next((st.get("decision") for st in p.get("steps", []) if st.get("decision")), "")
+            if decision:
+                parts.append(f"Before they act, ask them to PREDICT the decision here (the expert's answer: {decision}). "
+                             "Wait for their guess, then confirm or correct it with the expert's reason.")
             nudge, kind = " ".join(parts), "coach"
     return {"nudge": nudge, "nudge_kind": kind, "alert": alert}
 
@@ -411,9 +496,14 @@ def frame(request, session_id):
     now = time.time()
     phase = out.get("phase") if out.get("phase") in prompts.PHASE_IDS else ""
     phase_changed = bool(phase) and phase != session.phase
+    raw_events = out.get("events") or []
+    keyframe = None
+    meaningful = any(float(ev.get("judgment", 0) or 0) >= 0.45 for ev in raw_events if isinstance(ev, dict))
+    if session.kind == Session.CAPTURE and raw_events and (meaningful or phase_changed):
+        keyframe = save_keyframe(session, image, out.get("redact"), now)
     activity = out.get("activity") if out.get("activity") in ("typing", "clicking", "reading", "waiting", "idle") else "reading"
     new_events = []
-    for ev in (out.get("events") or [])[:4]:
+    for ev in [e for e in raw_events if isinstance(e, dict)][:4]:
         text = scrub(str(ev.get("text", "")).strip())[:200]
         if not text:
             continue
@@ -421,7 +511,8 @@ def frame(request, session_id):
             j = min(max(float(ev.get("judgment", 0.3)), 0.0), 1.0)
         except (TypeError, ValueError):
             j = 0.3
-        e = Event.objects.create(session=session, at=now, phase=phase or session.phase, text=text, judgment=j)
+        e = Event.objects.create(session=session, at=now, phase=phase or session.phase, text=text, judgment=j,
+                                 keyframe=keyframe)
         new_events.append({"id": e.id, "text": text, "judgment": j, "phase": e.phase})
     session.screen = scrub(str(out.get("screen", ""))[:400])
     session.activity = activity
@@ -489,7 +580,8 @@ def debrief(request, session_id):
         return JsonResponse({"error": "Could not prepare the debrief. Try again."}, status=503)
     qs = [str(q) for q in (out.get("open_questions") or [])][:5]
     teach_back = str(out.get("teach_back", ""))
-    session.debrief = {**session.debrief, "open_questions": qs, "teach_back": teach_back}
+    session.debrief = {**session.debrief, "open_questions": qs, "teach_back": teach_back,
+                       "started_at": session.debrief.get("started_at") or time.time()}
     session.save(update_fields=["debrief"])
     numbered = " ".join(f"{i}) {q}" for i, q in enumerate(qs, 1))
     nudge = ("[DEBRIEF] The expert has finished the task. Thank them in one short sentence. "
@@ -512,6 +604,13 @@ def build_map(request, session_id):
         logger.error("work map failed: %s", e)
         return JsonResponse({"error": "Could not build the Work Map. Try again."}, status=503)
     data["phases"] = [p for p in data.get("phases", []) if isinstance(p, dict)]
+    for p in data["phases"]:
+        for item in list(p.get("steps", [])) + list(p.get("guardrails", [])):
+            if isinstance(item, dict):
+                item["moment"] = _screen_moment(session, item.get("screen_event"))
+    for g in data.get("global_guardrails", []):
+        if isinstance(g, dict):
+            g["moment"] = _screen_moment(session, g.get("screen_event"))
     order = {pid: i for i, pid in enumerate(prompts.PHASE_IDS)}
     data["phases"].sort(key=lambda p: order.get(p.get("id"), 99))
     title = str(data.get("title") or "Deploy an app on Thales Ops")[:200]

@@ -43,8 +43,21 @@ class Session(models.Model):
         ordering = ["-created"]
 
 
+class Keyframe(models.Model):
+    """A small, redacted screenshot of a moment that mattered. Stored in the database so it
+    survives redeploys without a file store."""
+
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="keyframes")
+    at = models.FloatField()
+    image = models.BinaryField()  # JPEG
+
+    class Meta:
+        ordering = ["at", "id"]
+
+
 class Event(models.Model):
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="events")
+    keyframe = models.ForeignKey(Keyframe, null=True, blank=True, on_delete=models.SET_NULL, related_name="events")
     at = models.FloatField()  # unix seconds
     phase = models.CharField(max_length=40, blank=True, default="")
     text = models.TextField()

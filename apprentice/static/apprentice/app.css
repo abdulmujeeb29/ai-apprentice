@@ -245,6 +245,24 @@ a { color: inherit; }
 .steps { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: s; }
 .steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 12px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); }
 .steps li::before { content: counter(s); font: 400 22px/1 var(--serif); color: var(--amber-glow); }
+.step-main { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; }
+.moment { border: 0; padding: 0; background: var(--surface-3); border-radius: 10px; overflow: hidden; width: 132px; cursor: zoom-in; position: relative; display: block; color: var(--ink); }
+.moment img { width: 132px; height: 84px; object-fit: cover; object-position: top left; display: block; opacity: .9; transition: opacity .2s, transform .4s var(--ease); }
+.moment:hover img { opacity: 1; transform: scale(1.04); }
+.moment .t { position: absolute; left: 6px; bottom: 6px; font: 600 11px/1 var(--mono); background: rgba(0,0,0,.7); padding: 4px 6px; border-radius: 6px; color: var(--amber-glow); }
+.moment:not(:has(img)) { width: auto; height: auto; padding: 6px 8px; }
+.moment:not(:has(img)) .t { position: static; }
+.decision { margin: 6px 0 2px; font-size: 14px; }
+.decision .label { display: inline; margin-right: 8px; color: var(--learn); }
+.quote .src { display: block; margin-top: 4px; font: 600 10.5px/1.4 var(--sans); letter-spacing: .12em; text-transform: uppercase; font-style: normal; color: var(--ink-faint); }
+.quote.small { font-size: 15px; margin-top: 6px; }
+.moment-link { margin-top: 8px; border: 0; background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); font: 600 11.5px/1 var(--sans); padding: 7px 10px; border-radius: 8px; cursor: zoom-in; }
+.lightbox { position: fixed; inset: 0; z-index: 60; background: rgba(5,5,4,.86); display: grid; place-items: center; cursor: zoom-out; padding: 24px; }
+.lightbox img { max-width: min(1100px, 100%); max-height: 88vh; border-radius: 14px; box-shadow: var(--shadow-lift); }
+.alert .alert-row { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+.alert img { width: 170px; border-radius: 10px; display: block; }
+.alert .expert { margin-top: 8px; font: italic 400 16px/1.35 var(--serif); color: var(--ink-muted); }
+.result h4 { margin: 14px 0 4px; font: 600 11px/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-faint); }
 .steps .why { color: var(--ink-muted); font-size: 14px; margin-top: 4px; }
 .steps .quote { font: italic 400 17px/1.35 var(--serif); color: var(--ink); margin-top: 8px; padding-left: 12px; border-left: 2px solid var(--amber); }
 .guard { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 14px 16px; border-radius: 14px; background: var(--danger-soft); margin-top: 10px; }
@@ -267,6 +285,8 @@ a { color: inherit; }
   .map-hero { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
+  .step-main { grid-template-columns: 1fr; }
+  .alert .alert-row { grid-template-columns: 1fr; }
   .shell { padding: 0 16px; }
   .brand-sub, .nav { display: none; }
   .voice-stage, .start-hero, .detail { padding: 26px 22px; }

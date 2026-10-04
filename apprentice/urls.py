@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("", views.home, name="home"),
     path("healthz", views.healthz, name="healthz"),
+    path("k/<int:keyframe_id>.jpg", views.keyframe_image, name="keyframe"),
     path("capture/new/", views.capture_new, name="capture_new"),
     path("capture/<uuid:session_id>/", views.capture, name="capture"),
     path("map/<uuid:map_id>/", views.map_view, name="map"),
